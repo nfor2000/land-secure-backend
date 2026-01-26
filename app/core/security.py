@@ -3,15 +3,21 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
+import hashlib
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Password hashing
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt with SHA256 pre-hashing"""
+    # Always pre-hash with SHA256 to avoid bcrypt's 72-byte limit
+    password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    return pwd_context.hash(password_hash)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a password against a hash"""
+    # Apply the same pre-hashing
+    password_hash = hashlib.sha256(plain_password.encode('utf-8')).hexdigest()
+    return pwd_context.verify(password_hash, hashed_password)
 
 # JWT Token functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

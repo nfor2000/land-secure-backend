@@ -1,15 +1,22 @@
+# app/crud/user.py
 from datetime import datetime
 from typing import Optional, List
 from sqlmodel import Session, select
 from fastapi import HTTPException, status
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.auth import GoogleAuthPayload
 from app.core.security import hash_password, verify_password
 
 class UserCRUD:
     @staticmethod
     def get_user_by_email(session: Session, email: str) -> Optional[User]:
         statement = select(User).where(User.email == email)
+        return session.exec(statement).first()
+    
+    @staticmethod
+    def get_user_by_google_id(session: Session, google_id: str) -> Optional[User]:
+        statement = select(User).where(User.google_id == google_id)
         return session.exec(statement).first()
     
     @staticmethod
@@ -34,9 +41,51 @@ class UserCRUD:
             name=user_data.name,
             email=user_data.email,
             password_hash=password_hash,
+            is_verified=False,  # Email verification needed for regular users
         )
         
         session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
+    
+    @staticmethod
+    def create_or_update_google_user(
+        session: Session, 
+        google_data: GoogleAuthPayload
+    ) -> User:
+        """
+        Create a new user from Google OAuth or update existing user
+        """
+        # Check if user exists by email or google_id
+        user = UserCRUD.get_user_by_email(session, google_data.email)
+        
+        if not user:
+            user = UserCRUD.get_user_by_google_id(session, google_data.google_id)
+        
+        if user:
+            # Update existing user
+            user.name = google_data.name
+            user.image = google_data.image
+            user.is_verified = True  # Google users are auto-verified
+            
+            # Link google_id if not already linked
+            if not user.google_id:
+                user.google_id = google_data.google_id
+            
+            user.updated_at = datetime.utcnow()
+        else:
+            # Create new user
+            user = User(
+                name=google_data.name,
+                email=google_data.email,
+                google_id=google_data.google_id,
+                image=google_data.image,
+                is_verified=True,  # Google users are pre-verified
+                password_hash=None,  # No password for OAuth users
+            )
+            session.add(user)
+        
         session.commit()
         session.refresh(user)
         return user
@@ -46,6 +95,11 @@ class UserCRUD:
         user = UserCRUD.get_user_by_email(session, email)
         if not user:
             return None
+        
+        # Check if user has a password (not OAuth-only user)
+        if not user.password_hash:
+            return None
+            
         if not verify_password(password, user.password_hash):
             return None
         return user
