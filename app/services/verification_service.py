@@ -109,6 +109,8 @@ class SimpleVerifier:
                 vr.official_owner = registry.owner_name
                 vr.official_coords = registry.coordinates
                 vr.official_area = registry.area_square_meters
+                vr.official_certificate_pdf_url = registry.certificate_pdf_url
+                vr.official_certificate_number = registry.certificate_number
             else:
                 logger.warning(
                     "Coordinate mismatch | registry_id=%s | distance=%.2fm",

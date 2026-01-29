@@ -92,6 +92,8 @@ class VerificationRequest(SQLModel, table=True):
     official_owner: Optional[str] = None
     official_coords: Optional[List[Dict]] = Field(sa_column=Column(JSON), default=None)
     official_area: Optional[float] = None
+    official_certificate_pdf_url: Optional[str] = None
+    official_certificate_number: Optional[str] = None
     
     # Timestamps
     requested_at: datetime = Field(default_factory=datetime.utcnow, index=True)
